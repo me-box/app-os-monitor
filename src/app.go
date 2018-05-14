@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
+
+	"net/http"
+	"net/http/pprof"
 
 	"github.com/gorilla/mux"
 	databox "github.com/me-box/lib-go-databox"
@@ -25,9 +28,9 @@ func loadStats(dataset *DataSet, dataSourceID string, tsbc databox.JSONTimeSerie
 	}
 }
 
-func loadFreeMem(dataset *DataSet, _tsc databox.JSONTimeSeries_0_3_0) {
+func loadFreeMem(dataset *DataSet, tsbc databox.JSONTimeSeriesBlob_0_3_0) {
 
-	res, lastNerr := _tsc.LastN(dataSourceFreemem.DataSourceID, 500, databox.JSONTimeSeriesQueryOptions{})
+	res, lastNerr := tsbc.LastN(dataSourceFreemem.DataSourceID, 500)
 	if lastNerr != nil {
 		fmt.Println("Error getting last N ", dataSourceFreemem.DataSourceID, lastNerr)
 	}
@@ -71,13 +74,8 @@ func main() {
 		panic("Cant connect to store: " + err.Error())
 	}
 
-	tsc, err := databox.NewJSONTimeSeriesClient(DATABOX_ZMQ_ENDPOINT, false)
-	if err != nil {
-		panic("Cant connect to store: " + err.Error())
-	}
-
 	//Load in the last seen 500 points
-	loadFreeMem(&memStats, tsc)
+	loadFreeMem(&memStats, tsbc)
 	loadStats(&loadAverage1Stats, dataSourceLoadavg1.DataSourceID, tsbc)
 	loadStats(&loadAverage5Stats, dataSourceLoadavg5.DataSourceID, tsbc)
 	loadStats(&loadAverage15Stats, dataSourceLoadavg15.DataSourceID, tsbc)
@@ -135,6 +133,15 @@ func main() {
 	}(load1Chan, load5Chan, load15Chan, freememChan)
 
 	router := mux.NewRouter()
+	//debug endpoints
+	router.HandleFunc("/ui/debug", pprof.Index)
+	router.HandleFunc("/ui/cmdline", pprof.Cmdline)
+	router.HandleFunc("/ui/profile", pprof.Profile)
+	router.HandleFunc("/ui/symbol", pprof.Symbol)
+	router.Handle("/ui/goroutine", pprof.Handler("goroutine"))
+	router.Handle("/ui/heap", pprof.Handler("heap"))
+	router.Handle("/ui/threadcreate", pprof.Handler("threadcreate"))
+	router.Handle("/ui/block", pprof.Handler("block"))
 
 	router.HandleFunc("/ui", getUI).Methods("GET")
 	router.HandleFunc("/status", getStatusEndpoint).Methods("GET")
@@ -142,5 +149,20 @@ func main() {
 	router.HandleFunc("/ui/mem.png", getMemPlot).Methods("GET")
 	router.HandleFunc("/ui/stats", getStats).Methods("GET")
 
-	log.Fatal(http.ListenAndServeTLS(":8080", databox.GetHttpsCredentials(), databox.GetHttpsCredentials(), router))
+	tlsConfig := &tls.Config{
+		PreferServerCipherSuites: true,
+		CurvePreferences: []tls.CurveID{
+			tls.CurveP256,
+		},
+	}
+
+	srv := &http.Server{
+		Addr:         ":8080",
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  15 * time.Second,
+		TLSConfig:    tlsConfig,
+		Handler:      router,
+	}
+	log.Fatal(srv.ListenAndServeTLS(databox.GetHttpsCredentials(), databox.GetHttpsCredentials()))
 }

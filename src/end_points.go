@@ -84,6 +84,8 @@ func getLoadPlot(w http.ResponseWriter, req *http.Request) {
 
 func getStats(w http.ResponseWriter, req *http.Request) {
 
+	fmt.Println("[getStats] called ....")
+
 	_tsc, err := databox.NewJSONTimeSeriesClient(DATABOX_ZMQ_ENDPOINT, false)
 	if err != nil {
 		fmt.Println("Cant connect to store: " + err.Error())
@@ -119,22 +121,28 @@ func getStats(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Error getting Min dataSourceFreememStructured", err.Error())
 	}
 
-	loadSD, err := _tsc.Since(dataSourceLoadavg1Structured.DataSourceID, tMinus5mins, databox.JSONTimeSeriesQueryOptions{
+	/*loadSD, err := _tsc.Since(dataSourceLoadavg1Structured.DataSourceID, tMinus5mins, databox.JSONTimeSeriesQueryOptions{
 		AggregationFunction: databox.StandardDeviation,
 	})
 	if err != nil {
 		fmt.Println("Error getting Min dataSourceFreememStructured", err.Error())
-	}
+	}*/
+
+	fmt.Println(string(memMin),
+		string(memMax),
+		string(loadMin),
+		string(loadMax))
+
 	fmt.Fprintf(w,
 		`{
 			"mem":{"min":%s,"max":%s},
-			 "load":{"min":%s,"max":%s,"sd":%s}
+			 "load":{"min":%s,"max":%s}
 		}`,
 		string(memMin),
 		string(memMax),
 		string(loadMin),
 		string(loadMax),
-		string(loadSD),
+		//string(loadSD),
 	)
 
 }
@@ -202,7 +210,6 @@ func getUI(w http.ResponseWriter, r *http.Request) {
 				<span>Max Mem:</span><span id="maxmem"></span><br/>
 				<span>Min Load:</span><span id="minload"></span><br/>
 				<span>Max Load:</span><span id="maxload"></span><br/>
-				<span>Load SD:</span><span id="loadsd"></span><br/>
 			</div>
 		</center>
 		<script>
@@ -223,7 +230,6 @@ func getUI(w http.ResponseWriter, r *http.Request) {
 					document.getElementById("maxmem").innerHTML = (data.mem.max.result / 1048576) + " MB";
 					document.getElementById("minload").innerHTML = data.load.min.result;
 					document.getElementById("maxload").innerHTML = data.load.max.result;
-					document.getElementById("loadsd").innerHTML = data.load.sd.result;
 				}
 			  };
 			xhttp.send();
@@ -233,7 +239,7 @@ func getUI(w http.ResponseWriter, r *http.Request) {
 			var src = imgs[1].src.substr(0, eqPos+1);
 			imgs[1].src = src + Math.random();
 
-		}, 2000);
+		}, 5000);
 		</script>
 	`)
 }
