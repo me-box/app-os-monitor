@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	databox "github.com/me-box/lib-go-databox"
+	databox "github.com/toshbrown/lib-go-databox"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 )
@@ -86,35 +86,32 @@ func getStats(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("[getStats] called ....")
 
-	_tsc, err := databox.NewJSONTimeSeriesClient(DATABOX_ZMQ_ENDPOINT, false)
-	if err != nil {
-		fmt.Println("Cant connect to store: " + err.Error())
-	}
+	_csc := databox.NewDefaultCoreStoreClient(DATABOX_ZMQ_ENDPOINT)
 
 	tMinus5mins := time.Now().Unix() - (60 * 5)
 
-	memMin, err := _tsc.Since(dataSourceFreememStructured.DataSourceID, tMinus5mins, databox.JSONTimeSeriesQueryOptions{
+	memMin, err := _csc.TSJSON.Since(dataSourceFreememStructured.DataSourceID, tMinus5mins, databox.TimeSeriesQueryOptions{
 		AggregationFunction: databox.Min,
 	})
 	if err != nil {
 		fmt.Println("Error getting Max dataSourceFreememStructured", err.Error())
 	}
 
-	memMax, err := _tsc.Since(dataSourceFreememStructured.DataSourceID, tMinus5mins, databox.JSONTimeSeriesQueryOptions{
+	memMax, err := _csc.TSJSON.Since(dataSourceFreememStructured.DataSourceID, tMinus5mins, databox.TimeSeriesQueryOptions{
 		AggregationFunction: databox.Max,
 	})
 	if err != nil {
 		fmt.Println("Error getting Min dataSourceFreememStructured", err.Error())
 	}
 
-	loadMin, err := _tsc.Since(dataSourceLoadavg1Structured.DataSourceID, tMinus5mins, databox.JSONTimeSeriesQueryOptions{
+	loadMin, err := _csc.TSJSON.Since(dataSourceLoadavg1Structured.DataSourceID, tMinus5mins, databox.TimeSeriesQueryOptions{
 		AggregationFunction: databox.Min,
 	})
 	if err != nil {
 		fmt.Println("Error getting Max dataSourceFreememStructured", err.Error())
 	}
 
-	loadMax, err := _tsc.Since(dataSourceLoadavg1Structured.DataSourceID, tMinus5mins, databox.JSONTimeSeriesQueryOptions{
+	loadMax, err := _csc.TSJSON.Since(dataSourceLoadavg1Structured.DataSourceID, tMinus5mins, databox.TimeSeriesQueryOptions{
 		AggregationFunction: databox.Max,
 	})
 	if err != nil {

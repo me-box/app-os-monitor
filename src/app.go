@@ -12,12 +12,12 @@ import (
 	"net/http/pprof"
 
 	"github.com/gorilla/mux"
-	databox "github.com/me-box/lib-go-databox"
+	databox "github.com/toshbrown/lib-go-databox"
 )
 
 //Load historical load average data
-func loadStats(dataset *DataSet, dataSourceID string, tsbc databox.JSONTimeSeriesBlob_0_3_0) {
-	data, loadStatsLastNerr := tsbc.LastN(dataSourceID, 500)
+func loadStats(dataset *DataSet, dataSourceID string, _csc *databox.CoreStoreClient) {
+	data, loadStatsLastNerr := _csc.TSBlobJSON.LastN(dataSourceID, 500)
 	if loadStatsLastNerr != nil {
 		fmt.Println("Error getting last N ", dataSourceID, loadStatsLastNerr)
 	}
@@ -28,9 +28,9 @@ func loadStats(dataset *DataSet, dataSourceID string, tsbc databox.JSONTimeSerie
 	}
 }
 
-func loadFreeMem(dataset *DataSet, tsbc databox.JSONTimeSeriesBlob_0_3_0) {
+func loadFreeMem(dataset *DataSet, _csc *databox.CoreStoreClient) {
 
-	res, lastNerr := tsbc.LastN(dataSourceFreemem.DataSourceID, 500)
+	res, lastNerr := _csc.TSBlobJSON.LastN(dataSourceFreemem.DataSourceID, 500)
 	if lastNerr != nil {
 		fmt.Println("Error getting last N ", dataSourceFreemem.DataSourceID, lastNerr)
 	}
@@ -43,7 +43,7 @@ func loadFreeMem(dataset *DataSet, tsbc databox.JSONTimeSeriesBlob_0_3_0) {
 }
 
 // Global time series client (structured)
-var tsc databox.JSONTimeSeries_0_3_0
+var csc *databox.CoreStoreClient
 
 //Global datasets for holding the data
 var loadAverage1Stats DataSet
@@ -69,32 +69,29 @@ func main() {
 
 	fmt.Println(DATABOX_ZMQ_ENDPOINT)
 
-	tsbc, err := databox.NewJSONTimeSeriesBlobClient(DATABOX_ZMQ_ENDPOINT, false)
-	if err != nil {
-		panic("Cant connect to store: " + err.Error())
-	}
+	csc := databox.NewDefaultCoreStoreClient(DATABOX_ZMQ_ENDPOINT)
 
 	//Load in the last seen 500 points
-	loadFreeMem(&memStats, tsbc)
-	loadStats(&loadAverage1Stats, dataSourceLoadavg1.DataSourceID, tsbc)
-	loadStats(&loadAverage5Stats, dataSourceLoadavg5.DataSourceID, tsbc)
-	loadStats(&loadAverage15Stats, dataSourceLoadavg15.DataSourceID, tsbc)
+	loadFreeMem(&memStats, csc)
+	loadStats(&loadAverage1Stats, dataSourceLoadavg1.DataSourceID, csc)
+	loadStats(&loadAverage5Stats, dataSourceLoadavg5.DataSourceID, csc)
+	loadStats(&loadAverage15Stats, dataSourceLoadavg15.DataSourceID, csc)
 
 	//listen for new data
-	load1Chan, obsErr := tsbc.Observe(dataSourceLoadavg1.DataSourceID)
+	load1Chan, obsErr := csc.TSBlobJSON.Observe(dataSourceLoadavg1.DataSourceID)
 	if obsErr != nil {
 		fmt.Println("Error Observing ", dataSourceLoadavg1.DataSourceID)
 	}
-	load5Chan, _ := tsbc.Observe(dataSourceLoadavg5.DataSourceID)
-	load15Chan, _ := tsbc.Observe(dataSourceLoadavg15.DataSourceID)
-	freememChan, _ := tsbc.Observe(dataSourceFreemem.DataSourceID)
+	load5Chan, _ := csc.TSBlobJSON.Observe(dataSourceLoadavg5.DataSourceID)
+	load15Chan, _ := csc.TSBlobJSON.Observe(dataSourceLoadavg15.DataSourceID)
+	freememChan, _ := csc.TSBlobJSON.Observe(dataSourceFreemem.DataSourceID)
 
-	go func(_load1Chan, _load5Chan, _load15Chan, _freememChan <-chan databox.JsonObserveResponse) {
+	go func(_load1Chan, _load5Chan, _load15Chan, _freememChan <-chan databox.ObserveResponse) {
 		for {
 			select {
 			case msg := <-_load1Chan:
 				var data reading
-				err := json.Unmarshal(msg.Json, &data)
+				err := json.Unmarshal(msg.Data, &data)
 				if err != nil {
 					fmt.Println("json.Unmarshal error ", err)
 				} else {
@@ -102,7 +99,7 @@ func main() {
 				}
 			case msg := <-_load5Chan:
 				var data reading
-				err := json.Unmarshal(msg.Json, &data)
+				err := json.Unmarshal(msg.Data, &data)
 				if err != nil {
 					fmt.Println("json.Unmarshal error ", err)
 				} else {
@@ -110,7 +107,7 @@ func main() {
 				}
 			case msg := <-_load15Chan:
 				var data reading
-				err := json.Unmarshal(msg.Json, &data)
+				err := json.Unmarshal(msg.Data, &data)
 				if err != nil {
 					fmt.Println("json.Unmarshal error ", err)
 				} else {
@@ -118,13 +115,14 @@ func main() {
 				}
 			case msg := <-_freememChan:
 				var data reading
-				err := json.Unmarshal(msg.Json, &data)
+				err := json.Unmarshal(msg.Data, &data)
 				if err != nil {
 					fmt.Println("json.Unmarshal error ", err)
 				} else {
 					memStats.Add(data.Data, msg.TimestampMS)
-					jsonString, _ := json.Marshal(string(msg.Json[:]))
-					databox.ExportLongpoll("https://export.amar.io/", string(jsonString))
+					//TODO add export back in when it is ready
+					//jsonString, _ := json.Marshal(string(msg.Data[:]))
+					//databox.ExportLongpoll("https://export.amar.io/", string(jsonString))
 				}
 			default:
 				time.Sleep(time.Millisecond * 10)
