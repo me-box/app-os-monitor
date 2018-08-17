@@ -12,7 +12,7 @@ import (
 	"net/http/pprof"
 
 	"github.com/gorilla/mux"
-	databox "github.com/toshbrown/lib-go-databox"
+	databox "github.com/me-box/lib-go-databox"
 )
 
 //Load historical load average data
