@@ -1,7 +1,11 @@
-FROM golang:1.10.3-alpine as gobuild
+
+FROM arm64v8/alpine as gobuild
+RUN apk update && apk add build-base pkgconfig go git libzmq zeromq-dev alpine-sdk libsodium-dev
+#RUN apk update && apk add pkgconfig build-base bash autoconf automake libtool gettext openrc git libzmq zeromq-dev mercurial
+
+ENV GOPATH /
 WORKDIR /
-ENV GOPATH="/"
-RUN apk update && apk add pkgconfig build-base bash autoconf automake libtool gettext openrc git libzmq zeromq-dev mercurial
+
 #COPY . . if you update the libs below build with --no-cache
 RUN go get -u github.com/gorilla/mux
 RUN go get -u gonum.org/v1/gonum/...
