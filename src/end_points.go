@@ -88,7 +88,7 @@ func getStats(w http.ResponseWriter, req *http.Request) {
 
 	_csc := databox.NewDefaultCoreStoreClient(DATABOX_ZMQ_ENDPOINT)
 
-	tMinus5mins := time.Now().Unix() - (60 * 5)
+	tMinus5mins := (time.Now().Unix() - (60 * 5)) * 1000
 
 	memMin, err := _csc.TSJSON.Since(dataSourceFreememStructured.DataSourceID, tMinus5mins, databox.TimeSeriesQueryOptions{
 		AggregationFunction: databox.Min,
