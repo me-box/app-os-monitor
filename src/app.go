@@ -120,9 +120,8 @@ func main() {
 					fmt.Println("json.Unmarshal error ", err)
 				} else {
 					memStats.Add(data.Data, msg.TimestampMS)
-					//TODO add export back in when it is ready
-					//jsonString, _ := json.Marshal(string(msg.Data[:]))
-					//databox.ExportLongpoll("https://export.amar.io/", string(jsonString))
+					jsonString, _ := json.Marshal(string(msg.Data[:]))
+					csc.EXPORT.Longpoll("https://export.amar.io/", string(jsonString))
 				}
 			default:
 				time.Sleep(time.Millisecond * 10)
