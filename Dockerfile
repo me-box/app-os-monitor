@@ -11,7 +11,7 @@ COPY . .
 RUN addgroup -S databox && adduser -S -g databox databox
 RUN GGO_ENABLED=0 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-s -w' -o app /src/*.go
 
-FROM alpine
+FROM alpine:3.8
 COPY --from=gobuild /etc/passwd /etc/passwd
 RUN apk update && apk add libzmq
 USER databox
