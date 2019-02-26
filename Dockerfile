@@ -1,4 +1,4 @@
-FROM golang:1.10.3-alpine as gobuild
+FROM golang:1.11.5-alpine3.8 as gobuild
 WORKDIR /
 ENV GOPATH="/"
 RUN apk update && apk add pkgconfig build-base bash autoconf automake libtool gettext openrc git libzmq zeromq-dev mercurial
